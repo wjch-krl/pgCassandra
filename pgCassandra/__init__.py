@@ -5,18 +5,24 @@ from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 from collections import defaultdict
 
+class IndexType:
+	PRIMARY_KEY = 1
+	PARTITION_KEY= 1
+	CLUSTERING_KEY = 100
+	SECONDARY_IDX = 1000
+	CUSTOM_IDX = 10000
+	
 class CassandraFDW(ForeignDataWrapper):
-	IDX_QUERY_COST = 1000
-	CLUSTERING_KEY_QUERY_COST = 100
-	PARTITION_KEY_QUERY_COST = 1
-	PRIMARY_KEY_QUERY_COST = 1
 	
 	def keyTypeToCost(self,columnKeyType,columnIdxType):
 		if (columnKeyType == "clustering_key"):
-			return self.CLUSTERING_KEY_QUERY_COST
+			return IndexType.CLUSTERING_KEY
 		if (columnKeyType == "partition_key"):
-			return self.PARTITION_KEY_QUERY_COST
-		return self.IDX_QUERY_COST
+			return IndexType.PARTITION_KEY
+		if (columnIdxType == "CUSTOM")
+			return IndexType.CUSTOM_IDX
+		if(columnIdxType == "SECONDARY")	
+			return IndexType.SECONDARY_IDX
 	
 	def qualValueToString(self, qual):
 		if ((type(qual.value) is str) or (type(qual.value) is unicode)):
@@ -60,6 +66,7 @@ class CassandraFDW(ForeignDataWrapper):
 	
 	def execute(self, quals, columns):
 		statement = ""
+		usedQuals = {}
 		if (self.query):
 			statement = self.query
 		else:
@@ -69,6 +76,7 @@ class CassandraFDW(ForeignDataWrapper):
 			for qual in quals:
 				if (qual.operator == "="):
 					if (qual.field_name in self.queryableColumns):
+						usedQuals[qual.field_name] = qual.value
 						if isWhere:
 							statement += " AND {0} = {1} ".format(qual.field_name,self.qualValueToString(qual))
 						else:
@@ -83,11 +91,14 @@ class CassandraFDW(ForeignDataWrapper):
 			line = {}
 			idx = 0
 			for column_name in columns:
-				line[column_name] = row[idx]
+				if (key in usedQuals):
+					line[column_name] = d[column_name]
+				else:
+					line[column_name] = row[idx]
 				idx = idx + 1
 			yield line
 			 
-			
+	
 	def get_path_keys(self):
 		s = [(v,k.encode('ascii','ignore')) for k,v in self.queryableColumns.iteritems()]
 		d = defaultdict(list)
