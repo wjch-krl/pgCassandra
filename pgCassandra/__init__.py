@@ -42,6 +42,7 @@ class CassandraFDW(ForeignDataWrapper):
 		
 		# Cassandra connection init
 		self.cluster =  Cluster(hosts)
+		log_to_postgres("Connected to: {0}".format(self.cluster ), INFO)
 		self.session = self.cluster.connect()
 		if (timeout):
 			self.session.default_timeout = timeout
@@ -76,7 +77,7 @@ class CassandraFDW(ForeignDataWrapper):
 							isWhere = 1
 		if (self.limit):
 			statement += " limit {0}".format(limit);
-		#log_to_postgres("CQL query: {0}".format(statement), DEBUG)
+		log_to_postgres("CQL query: {0}".format(statement), INFO)
 		
 		result = self.session.execute(statement)
 		for row in result:
@@ -84,6 +85,8 @@ class CassandraFDW(ForeignDataWrapper):
 			idx = 0
 			for column_name in columns:
 				line[column_name] = row[idx]
+				if(column_name == "lucene"):
+					line[column_name] = '{ query:{ type:"phrase", field:"pos_normalizemessage", value:"rower" }}'
 				idx = idx + 1
 			yield line
 			 
