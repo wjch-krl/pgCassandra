@@ -41,7 +41,5 @@ SERVER multicorn_srv;
 Select * from messages where id = '123124';
 ```
 ### 3. Feateures
-* Query pushdown
-* Automatic index dicovery
+* Automatic index dicovery - query is pushed to cassandra only if it can be performed
 * Custom indexes support (e.g https://github.com/Stratio/cassandra-lucene-index.git)
-*
