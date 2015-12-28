@@ -4,6 +4,8 @@ from cassandra import ConsistencyLevel
 from cassandra.cluster import Cluster
 from cassandra.query import SimpleStatement
 from collections import defaultdict
+from decimal import Decimal
+import math
 
 class CassandraFDW(ForeignDataWrapper):
 	IDX_QUERY_COST = 1000
@@ -20,8 +22,8 @@ class CassandraFDW(ForeignDataWrapper):
 	
 	def qualValueToString(self, qual):
 		if ((type(qual.value) is str) or (type(qual.value) is unicode)):
-			return "'{0}'".format(qual.value)
-		return "{0}".format(qual.value)
+			return u"'{0}'".format(qual.value)
+		return u"{0}".format(qual.value)
 	
 	def __init__(self, options, columns):
 		super(CassandraFDW, self).__init__(options, columns)
@@ -59,33 +61,41 @@ class CassandraFDW(ForeignDataWrapper):
 	
 	
 	def execute(self, quals, columns):
-		statement = ""
+		statement = u""
 		usedQuals = {}
 		if (self.query):
 			statement = self.query
 		else:
-			statement = "SELECT {0} FROM {1}.{2}".format(",".join(columns), self.keyspace, self.columnfamily);
+			statement = u"SELECT {0} FROM {1}.{2}".format(",".join(columns), self.keyspace, self.columnfamily);
 		# TODO don't query when clustering key is queried and partion key isn't
 			isWhere = None
 			for qual in quals:
 				if (qual.operator == "="):
 					if (qual.field_name in self.queryableColumns):
-						usedQuals[qual.field_name] = qual.value
-						if isWhere:
-							statement += " AND {0} = {1} ".format(qual.field_name,self.qualValueToString(qual))
-						else:
-							statement += " WHERE {0} = {1} ".format(qual.field_name,self.qualValueToString(qual))
-							isWhere = 1
+						if (qual.field_name not in usedQuals):
+							usedQuals[qual.field_name] = qual.value
+							if isWhere:
+								statement += u" AND {0} = {1} ".format(qual.field_name,self.qualValueToString(qual))
+							else:
+								statement += u" WHERE {0} = {1} ".format(qual.field_name,self.qualValueToString(qual))
+								isWhere = 1
 		if (self.limit):
-			statement += " limit {0}".format(limit);
-		log_to_postgres("CQL query: {0}".format(statement), INFO)
+			statement += u" limit {0}".format(limit);
+		log_to_postgres(u"CQL query: {0}".format(statement), INFO)
 		
 		result = self.session.execute(statement)
 		for row in result:
 			line = {}
 			idx = 0
 			for column_name in columns:
-				line[column_name] = row[idx]
+				value = row[idx]
+				if(isinstance(value,Decimal)):
+					if(math.isnan(value) or math.isinf(value)):
+						line[column_name] = 0;
+					else:
+						line[column_name] = round(value, 2)
+				else:
+					line[column_name] = value
 				if (column_name in usedQuals):
 					line[column_name] = usedQuals[column_name]
 				idx = idx + 1
