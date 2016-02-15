@@ -81,6 +81,7 @@ class CassandraFDW(ForeignDataWrapper):
 								isWhere = 1
 		if (self.limit):
 			statement += u" limit {0}".format(limit);
+		statement += " ALLOW FILTERING "
 		log_to_postgres(u"CQL query: {0}".format(statement), INFO)
 		
 		result = self.session.execute(statement)
