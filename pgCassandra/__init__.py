@@ -48,18 +48,18 @@ class CassandraFDW(ForeignDataWrapper):
                 self.queryableColumns[column_name] = self.key_cost(column_key_type, column_idx_type)
         
         def get_version():
-            version_string, = self.session.execute("select release_version from system.local where key = 'local'")[0]
+            version_string, = self.session.execute(u"select release_version from system.local where key = 'local'")[0]
             groups = version_string.split('.')
             version = float('_'.join(groups[:2]))
             return version
         
         def table_info_query(version):
             if version < 3:
-                table_name = "system.schema_columns"
+                table_name = u"system.schema_columns"
             else:
-                table_name = "system_schema.columns"
-            query = "select column_name,type,index_type from {0} " \
-                "where keyspace_name = %s and columnfamily_name = %s".format(table_name)
+                table_name = u"system_schema.columns"
+            query = u"select column_name,type,index_type from {0} " \
+                u"where keyspace_name = %s and columnfamily_name = %s".format(table_name)
             return query
             
             def get_options():
@@ -87,6 +87,7 @@ self.hosts = options.get("hosts", "localhost").split(",")
 def execute(self, quals, columns):
     if self.query:
         statement = self.query
+            used_quals = {}
         else:
             statement, used_quals = self.generate_query(columns, quals)
     if self.log_level != "0":
@@ -110,10 +111,45 @@ def execute(self, quals, columns):
                 idx += 1
             yield line
 
-def generate_query(self, columns, quals):
-    used_quals = {}
+def get_rel_size(self, quals, columns):
+    jj = 0
+    
+    @classmethod
+    def import_schema(self, schema, srv_options, options, restriction_type, restricts):
+        jj = 0
+    
+    def insert(self, values):
+        if self.columnfamily is None:
+            log_to_postgres("Insert can be done only if columnfamily have been configured.", ERROR)
+            return
+        insertQuery = u"INSERT INTO {0} ({1}) VALUES ({2})".\
+            format(self.columnfamily,",".join(values), ",".join(["?"] * len(values)))
+        
+        result = self.session.execute(insertQuery,values.values())
+        return values;
+    
+    def rowid_column(self):
+        return "pg_cassandra_id"
+    
+    def update(self, oldvalues, newvalues):
+        return self.insert(newvalues)
+    
+    def can_sort(pathkeys):
+        jj = 0
+    
+    def generate_query(self, columns, quals):
         statement = u"SELECT {0} FROM {1}.{2}".format(",".join(columns), self.keyspace, self.columnfamily)
         # TODO don't query when clustering key is queried and partion key isn't
+        where_statement, used_quals = self.process_quals(quals)
+        statement += where_statement
+        if self.limit:
+            statement += u" LIMIT {0}".format(self.limit)
+        statement += u" ALLOW FILTERING "
+        return statement, used_quals
+    
+    def process_quals(self, quals):
+        used_quals = {}
+        statement = u"";
         is_where = None
         for qual in quals:
             if qual.operator == "=" \
@@ -125,14 +161,11 @@ def generate_query(self, columns, quals):
             else:
                 statement += u" WHERE {0} = {1} ".format(qual.field_name, format_qual_value(qual))
                     is_where = 1
-    statement += " ALLOW FILTERING "
-        if self.limit:
-            statement += u" limit {0}".format(self.limit)
-return statement, used_quals
-    
-    def get_path_keys(self):
-        s = [(v, k.encode('ascii', 'ignore')) for k, v in self.queryableColumns.iteritems()]
+    return statement, used_quals
+
+def get_path_keys(self):
+    s = [(v, k.encode('ascii', 'ignore')) for k, v in self.queryableColumns.iteritems()]
         d = defaultdict(list)
         for k, v in s:
             d[k].append(v)
-        return [(tuple(v), k) for k, v in d.items()]
+    return [(tuple(v), k) for k, v in d.items()]
