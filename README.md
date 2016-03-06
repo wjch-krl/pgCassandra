@@ -1,4 +1,4 @@
-# pgCassandra
+# pgCassandra - devel branch - unstable, some code might be untested
 PostgreSQL's multicorn based FDW (Foreign Data Wrapper) for connecting to Apache Cassandra NoSQL database 
 ### 1. Installation
 ##### a) Install Multicorn
