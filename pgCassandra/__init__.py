@@ -41,8 +41,8 @@ class CassandraFDW(ForeignDataWrapper):
 		self.query = options.get("query", None)
 		self.limit = options.get("limit", None)
 		timeout =  options.get("timeout", None)
-		username = options.get("password", None)
-		password = options.get("username", None)
+		username = options.get("username", None)
+		password = options.get("password", None)
 		if(username is None):
 			self.cluster =  Cluster(hosts)
 		else:
